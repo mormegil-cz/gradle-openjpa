@@ -34,13 +34,15 @@ class OpenJpaPlugin implements Plugin<Project> {
             def loader = new URLClassLoader(urls, oldClassLoader)
             try {
                 Thread.currentThread().setContextClassLoader(loader)
-                FileCollection tree = target.openjpa.files;
-                if (tree == null) {
-                    tree = target.fileTree(target.sourceSets.main.output.classesDir)
+                String[] directories
+                directories = target.openjpa.files as String[]
+                if (directories == null) directories = target.sourceSets.main.output.classesDirs.files as String[]
+                def files = directories.collectMany {
+                    target.fileTree(it).files
                 }
-                logger.info("enhancing {}", tree.files);
+                logger.info("enhancing {}", files)
                 PCEnhancer.run(
-                        tree.files as String[],
+                        files as String[],
                         new Options(target.openjpa.toProperties())
                 )
             } finally {
@@ -53,13 +55,15 @@ class OpenJpaPlugin implements Plugin<Project> {
 
     private static URL[] collectURLs(target) {
         def compileClassPathURLs = target.configurations["compile"].files.collect {
-            it.toURI().toURL();
+            it.toURI().toURL()
         }
         def resourceUrls = target.sourceSets.main.resources.srcDirs.collect {
-            return target.file(it).toURI().toURL()
+            target.file(it).toURI().toURL()
         }
-        def classesDir = target.sourceSets.main.output.classesDir
-        return compileClassPathURLs + resourceUrls + classesDir.toURI().toURL()
+        def classesDirs = target.sourceSets.main.output.classesDirs.collect {
+            it.toURI().toURL()
+        }
+        return compileClassPathURLs + resourceUrls + classesDirs
     }
 
 }
